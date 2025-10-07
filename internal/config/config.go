@@ -22,6 +22,13 @@ type Config struct {
 	S3AccessKey      string `env:"S3_ACCESS_KEY"`
 	S3SecretKey      string `env:"S3_SECRET_KEY"`
 	S3ForcePathStyle bool   `env:"S3_FORCE_PATH_STYLE" envDefault:"false"`
+
+	// SMTP
+	SMTPHost     string `env:"SMTP_HOST" envDefault:"localhost"`
+	SMTPPort     int    `env:"SMTP_PORT" envDefault:"1025"`
+	SMTPUsername string `env:"SMTP_USERNAME"`
+	SMTPPassword string `env:"SMTP_PASSWORD"`
+	SMTPFrom     string `env:"SMTP_FROM,notEmpty" envDefault:"no-reply@example.com"`
 }
 
 func Load() (*Config, error) {
