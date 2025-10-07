@@ -2,6 +2,6 @@ package ports
 
 import "context"
 
-type TransactionReportService interface {
+type TemplateRender interface {
 	Process(ctx context.Context, userEmail string, csvSourcePath string, templateHtml string) error
 }

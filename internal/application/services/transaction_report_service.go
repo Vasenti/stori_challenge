@@ -14,6 +14,8 @@ type TransactionReportService struct {
 	reader ports.Reader
 	urepo  ports.UserRepository
 	trepo  ports.TransactionRepository
+	email  ports.EmailSender
+	renderHTML func(domain.MonthlySummary, string, string) (string, error)
 	parseCSV   func(io.Reader, string, time.Time) ([]domain.Transaction, error)
 }
 
@@ -21,17 +23,21 @@ func NewTransactionReportService(
 	reader ports.Reader,
 	urepo ports.UserRepository,
 	trepo ports.TransactionRepository,
+	email ports.EmailSender,
+	renderHTML func(domain.MonthlySummary, string, string) (string, error),
 	parseCSV func(io.Reader, string, time.Time) ([]domain.Transaction, error),
 ) ports.TransactionReportService {
 	return &TransactionReportService{
 		reader:   reader,
 		urepo:   urepo,
 		trepo:   trepo,
+		email:    email,
+		renderHTML: renderHTML,
 		parseCSV: parseCSV,
 	}
 }
 
-func (s *TransactionReportService) Process(ctx context.Context, userEmail string, csvSourcePath string) error {
+func (s *TransactionReportService) Process(ctx context.Context, userEmail string, csvSourcePath string, templateHtml string) error {
 	// 1) Ensure user exists or create it
 	if err := s.urepo.Ensure(ctx, userEmail); err != nil {
 		return fmt.Errorf("ensure user: %w", err)
@@ -63,5 +69,18 @@ func (s *TransactionReportService) Process(ctx context.Context, userEmail string
 
 	fmt.Printf("Get monthly summary - balance: %f, avgCredit: %f, avgDebit: %f", summary.BalanceTotal, summary.AvgCredit, summary.AvgDebit)
 
+	// 6) Render HTML
+	htmlBody, err := s.renderHTML(summary, userEmail, templateHtml)
+	if err != nil {
+		return fmt.Errorf("render html: %w", err)
+	}
+
+	// 7) Send email
+	subject := fmt.Sprintf("Your transaction report - %s", time.Now().Format("January 2006"))
+	if err := s.email.Send(userEmail, subject, htmlBody); err != nil {
+		return fmt.Errorf("send email: %w", err)
+	}
+
+	fmt.Println("Email sent to", userEmail)
 	return nil
 }
