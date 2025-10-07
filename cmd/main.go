@@ -1,18 +1,23 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 
+	"github.com/Vasenti/stori_challenge/internal/application/ports"
+	"github.com/Vasenti/stori_challenge/internal/application/services"
 	"github.com/Vasenti/stori_challenge/internal/config"
 	"github.com/Vasenti/stori_challenge/internal/intrastructure/db"
+	"github.com/Vasenti/stori_challenge/internal/intrastructure/db/reader"
+	"github.com/Vasenti/stori_challenge/internal/intrastructure/parser"
 	"github.com/joho/godotenv"
 )
 
 func main() {
 	_ = godotenv.Load()
-	
+
 	var emailTo string
 	var source string
 	var templatePath string
@@ -36,4 +41,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	var reader ports.Reader = reader.LocalFileReader{}
+
+	svc := services.NewTransactionReportService(
+		reader,
+		parser.ParseTransactionsCSV,
+	)
+
+	if err := svc.Process(context.Background(), emailTo, source); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Report processed successfully")
 }
