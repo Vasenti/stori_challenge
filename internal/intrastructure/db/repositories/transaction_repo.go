@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/Vasenti/stori_challenge/internal/application/ports"
@@ -29,65 +30,49 @@ func (r *transactionRepo) BulkUpsert(ctx context.Context, txs []domain.Transacti
 }
 
 func (r *transactionRepo) GetMonthlySummary(ctx context.Context, userEmail string) (domain.MonthlySummary, error) {
-	type Row struct {
-		Month int
-		Count int
-	}
-	var rows []Row
+	var txs []domain.Transaction
 
 	if err := r.db.WithContext(ctx).
-		Raw(`
-			SELECT EXTRACT(MONTH FROM occurred_at)::int AS month, COUNT(*) AS count
-			FROM transactions
-			WHERE user_email = ?
-			GROUP BY 1
-			ORDER BY 1
-		`, userEmail).Scan(&rows).Error; err != nil {
+		Select("occurred_at", "amount").
+		Where("user_email = ?", userEmail).
+		Find(&txs).Error; err != nil {
 		return domain.MonthlySummary{}, err
 	}
 
-	trxByMonth := make(map[time.Month]int)
-	for _, rrow := range rows {
-		trxByMonth[time.Month(rrow.Month)] = rrow.Count
+	trxByMonth := make(map[time.Month]int, 12)
+
+	var balance float64
+	var sumCredits float64
+	var cntCredits int
+	var sumDebitsAbs float64
+	var cntDebits int
+
+	for _, t := range txs {
+		balance += t.Amount
+
+		trxByMonth[t.OccurredAt.Month()]++
+
+		if t.Amount > 0 {
+			sumCredits += t.Amount
+			cntCredits++
+		} else if t.Amount < 0 {
+			sumDebitsAbs += math.Abs(t.Amount)
+			cntDebits++
+		}
 	}
 
-	type Agg struct {
-		Balance float64
-		AvgDeb  *float64
-		AvgCred *float64
+	var avgCredit, avgDebit float64
+	if cntCredits > 0 {
+		avgCredit = sumCredits / float64(cntCredits)
 	}
-	var agg Agg
-	if err := r.db.WithContext(ctx).
-		Raw(`
-			WITH base AS (
-			  SELECT amount FROM transactions WHERE user_email = ?
-			),
-			debits AS (
-			  SELECT ABS(amount) AS val FROM base WHERE amount < 0
-			),
-			credits AS (
-			  SELECT amount AS val FROM base WHERE amount > 0
-			)
-			SELECT
-			  (SELECT COALESCE(SUM(amount),0) FROM base) AS balance,
-			  (SELECT AVG(val) FROM debits) AS avg_deb,
-			  (SELECT AVG(val) FROM credits) AS avg_cred
-		`, userEmail).Scan(&agg).Error; err != nil {
-		return domain.MonthlySummary{}, err
-	}
-
-	var avgDeb, avgCred float64
-	if agg.AvgDeb != nil {
-		avgDeb = *agg.AvgDeb
-	}
-	if agg.AvgCred != nil {
-		avgCred = *agg.AvgCred
+	if cntDebits > 0 {
+		avgDebit = sumDebitsAbs / float64(cntDebits)
 	}
 
 	return domain.MonthlySummary{
-		BalanceTotal:        agg.Balance,
+		BalanceTotal:        balance,
 		TransactionsByMonth: trxByMonth,
-		AvgDebit:            avgDeb,
-		AvgCredit:           avgCred,
+		AvgDebit:            avgDebit,
+		AvgCredit:           avgCredit,
 	}, nil
 }

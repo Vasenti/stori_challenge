@@ -12,6 +12,7 @@ import (
 	"github.com/Vasenti/stori_challenge/internal/config"
 	"github.com/Vasenti/stori_challenge/internal/intrastructure/db"
 	"github.com/Vasenti/stori_challenge/internal/intrastructure/db/reader"
+	"github.com/Vasenti/stori_challenge/internal/intrastructure/db/repositories"
 	"github.com/Vasenti/stori_challenge/internal/intrastructure/parser"
 	"github.com/joho/godotenv"
 )
@@ -38,10 +39,13 @@ func main() {
 		panic(err)
 	}
 
-	_, err = db.NewGorm(cfg)
+	gdb, err := db.NewGorm(cfg)
 	if err != nil {
 		panic(err)
 	}
+
+	users := repositories.NewUserRepository(gdb)
+	transactions := repositories.NewTransactionRepository(gdb)
 
 	var rdr ports.Reader = reader.LocalFileReader{}
 	if strings.HasPrefix(source, "s3://") {
@@ -52,12 +56,12 @@ func main() {
 
 	svc := services.NewTransactionReportService(
 		rdr,
+		users,
+		transactions,
 		parser.ParseTransactionsCSV,
 	)
 
 	if err := svc.Process(context.Background(), emailTo, source); err != nil {
 		panic(err)
 	}
-
-	fmt.Println("Report processed successfully")
 }
