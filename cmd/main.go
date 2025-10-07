@@ -14,7 +14,7 @@ func main() {
 	var templatePath string
 
 	flag.StringVar(&emailTo, "email", "", "User email to send the report")
-	flag.StringVar(&source, "src", "", "CSV Route (local r s3://bucket/key)")
+	flag.StringVar(&source, "src", "", "CSV Route (local or s3://bucket/key)")
 	flag.StringVar(&templatePath, "template", "", "HTML Template Path (local path)")
 	flag.Parse()
 
