@@ -6,9 +6,13 @@ import (
 	"os"
 
 	"github.com/Vasenti/stori_challenge/internal/config"
+	"github.com/Vasenti/stori_challenge/internal/intrastructure/db"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	_ = godotenv.Load()
+	
 	var emailTo string
 	var source string
 	var templatePath string
@@ -23,7 +27,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	_, err := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = db.NewGorm(cfg)
 	if err != nil {
 		panic(err)
 	}
