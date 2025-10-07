@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Vasenti/stori_challenge/internal/application/ports"
 	"github.com/Vasenti/stori_challenge/internal/application/services"
@@ -42,10 +43,15 @@ func main() {
 		panic(err)
 	}
 
-	var reader ports.Reader = reader.LocalFileReader{}
+	var rdr ports.Reader = reader.LocalFileReader{}
+	if strings.HasPrefix(source, "s3://") {
+		s3r, err := reader.NewS3Reader(cfg.S3Region, cfg.S3Endpoint, cfg.S3AccessKey, cfg.S3SecretKey, cfg.S3ForcePathStyle)
+		if err != nil { panic(err) }
+		rdr = s3r
+	}
 
 	svc := services.NewTransactionReportService(
-		reader,
+		rdr,
 		parser.ParseTransactionsCSV,
 	)
 
