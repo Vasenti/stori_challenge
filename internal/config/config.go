@@ -29,6 +29,8 @@ type Config struct {
 	SMTPUsername string `env:"SMTP_USERNAME"`
 	SMTPPassword string `env:"SMTP_PASSWORD"`
 	SMTPFrom     string `env:"SMTP_FROM,notEmpty" envDefault:"no-reply@example.com"`
+
+	ReportTemplatePath string `env:"REPORT_TEMPLATE_PATH"`
 }
 
 func Load() (*Config, error) {
