@@ -23,7 +23,7 @@ func (r *transactionRepo) BulkUpsert(ctx context.Context, txs []domain.Transacti
 	}
 	return r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "id"}}, // PK
+			Columns:   []clause.Column{{Name: "user_email"}, {Name: "id"}},
 			DoNothing: true,
 		}).
 		Create(&txs).Error
